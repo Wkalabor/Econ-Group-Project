@@ -6,6 +6,7 @@ import pandas as pd
 
 sys.path.append(os.path.abspath("."))
 
+from src.models.evaluation import rolling_origin_arima_evaluation
 from src.models.arima import run_arima, select_arima
 from src.models.garch import run_garch
 from src.models.ols import diagnostics_ols, run_ols
@@ -45,6 +46,25 @@ def main() -> None:
         arima_forecast = arima_res["forecast"](FORECAST_HORIZON)
         arima_forecast.to_csv(arima_forecast_path, index_label="Date")
         print(f"ARIMA order {order} forecast saved to {arima_forecast_path}")
+
+        eval_res = rolling_origin_arima_evaluation(
+            df["FSI"], order=order, test_size=FORECAST_HORIZON, forecast_horizon=1
+        )
+        metrics = eval_res["metrics"]
+        metrics_df = pd.DataFrame(
+            [
+                {
+                    "RMSE": metrics["rmse"],
+                    "MAE": metrics["mae"],
+                    "train_end_date": metrics["train_end"].date(),
+                    "test_start_date": metrics["test_start"].date(),
+                    "test_end_date": metrics["test_end"].date(),
+                }
+            ]
+        )
+        metrics_path = REPORT_DIR / "forecast_metrics.csv"
+        metrics_df.to_csv(metrics_path, index=False)
+        print(f"ARIMA evaluation metrics saved to {metrics_path}")
     except Exception as exc:  # pragma: no cover - defensive
         print(f"ARIMA estimation failed: {exc}")
 
