@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import os
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 from datetime import date
 from typing import Dict
 
@@ -11,6 +18,8 @@ from src.models.arima import run_arima, select_arima
 from src.models.garch import run_garch
 from src.models.ols import diagnostics_ols, run_ols
 from src.utils.load_data import load_all_data
+
+
 
 
 @st.cache_data(show_spinner=False)
