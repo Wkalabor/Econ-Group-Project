@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath("."))
 from src.models.evaluation import rolling_origin_arima_evaluation
 from src.models.arima import run_arima, select_arima
 from src.models.garch import run_garch
-from src.models.ols import diagnostics_ols, run_ols
+from src.models.ols import diagnostics_ols, plot_residuals, run_ols
 
 matplotlib.use("Agg")
 
@@ -117,14 +117,19 @@ def main() -> None:
     try:
         ols_res = run_ols(df)
         diag = diagnostics_ols(ols_res["residuals"])
+
+        # Generate residual plot for the report
+        plot_residuals(ols_res["residuals"])
         with open(ols_summary_path, "w") as fh:
             fh.write(ols_res["model"].summary().as_text())
             fh.write("\n\nDiagnostics:\n")
             for k, v in diag.items():
                 fh.write(f"{k}: {v}\n")
         print(f"OLS completed. R2={ols_res['r2']:.3f}. Summary saved to {ols_summary_path}")
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:
         print(f"OLS estimation failed: {exc}")
+
+
 
     # ARIMA
     arima_forecast_path = REPORT_DIR / "arima_forecast.csv"
@@ -172,3 +177,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
