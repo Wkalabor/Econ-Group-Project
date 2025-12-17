@@ -6,7 +6,6 @@ from statsmodels.tsa.arima.model import ARIMA
 
 
 def select_arima(series: pd.Series, order_max: tuple[int, int, int] = (3, 2, 3)) -> tuple[int, int, int]:
-    """Use pmdarima.auto_arima to select an ARIMA order for the provided series."""
     series = series.dropna()
     model = pm.auto_arima(
         series,
@@ -22,12 +21,18 @@ def select_arima(series: pd.Series, order_max: tuple[int, int, int] = (3, 2, 3))
 
 
 def run_arima(series: pd.Series, order: tuple[int, int, int]) -> dict:
-    """Fit an ARIMA model and expose a forecast helper."""
     series = series.dropna()
-    model = ARIMA(series, order=order).fit()
+
+    model = ARIMA(
+        series,
+        order=order,
+        enforce_stationarity=False,
+        enforce_invertibility=False,
+    ).fit(method_kwargs={"maxiter": 200})
 
     def forecast(steps: int = 30) -> pd.DataFrame:
         results = model.get_forecast(steps=steps)
         return results.summary_frame()
 
     return {"model": model, "forecast": forecast}
+
