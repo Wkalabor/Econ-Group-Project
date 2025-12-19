@@ -2,36 +2,26 @@
 ==============================================================================
 Dep. Variable:                    FSI   R-squared:                       1.000
 Model:                            OLS   Adj. R-squared:                  1.000
-Method:                 Least Squares   F-statistic:                 8.656e+31
-Date:                Tue, 09 Dec 2025   Prob (F-statistic):               0.00
-Time:                        11:19:44   Log-Likelihood:             1.8633e+05
-No. Observations:                5775   AIC:                        -3.727e+05
-Df Residuals:                    5771   BIC:                        -3.726e+05
+Method:                 Least Squares   F-statistic:                 4.034e+32
+Date:                Fri, 19 Dec 2025   Prob (F-statistic):               0.00
+Time:                        13:18:06   Log-Likelihood:             1.9148e+05
+No. Observations:                5797   AIC:                        -3.829e+05
+Df Residuals:                    5793   BIC:                        -3.829e+05
 Df Model:                           3                                         
 Covariance Type:            nonrobust                                         
 ==============================================================================
                  coef    std err          t      P>|t|      [0.025      0.975]
 ------------------------------------------------------------------------------
-const         -3.1491   2.66e-16  -1.19e+16      0.000      -3.149      -3.149
-VIX            0.0486   5.39e-18   9.03e+15      0.000       0.049       0.049
-Spread         0.2562   3.79e-17   6.76e+15      0.000       0.256       0.256
-CDS            0.0703   9.15e-18   7.68e+15      0.000       0.070       0.070
+const         -3.1189   1.21e-16  -2.58e+16      0.000      -3.119      -3.119
+VIX            0.0487    2.5e-18   1.95e+16      0.000       0.049       0.049
+Spread         0.2559   1.75e-17   1.46e+16      0.000       0.256       0.256
+CDS            0.0691   4.16e-18   1.66e+16      0.000       0.069       0.069
 ==============================================================================
-Omnibus:                        2.728   Durbin-Watson:                   0.010
-Prob(Omnibus):                  0.256   Jarque-Bera (JB):                2.679
-Skew:                           0.049   Prob(JB):                        0.262
-Kurtosis:                       3.037   Cond. No.                         216.
+Omnibus:                     1621.679   Durbin-Watson:                   0.037
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):             4447.844
+Skew:                           1.486   Prob(JB):                         0.00
+Kurtosis:                       6.096   Cond. No.                         211.
 ==============================================================================
 
 Notes:
 [1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
-
-Diagnostics:
-ljung_box_stat: 53588.35413408463
-ljung_box_pvalue: 0.0
-arch_lm_stat: 6.398215290914777e-13
-arch_lm_pvalue: 1.0
-jarque_bera_stat: 2.679061861013185
-jarque_bera_pvalue: 0.26196852120639486
-skew: 0.049453420973384274
-kurtosis: 3.0367586750897466

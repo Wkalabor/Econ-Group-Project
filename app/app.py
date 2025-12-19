@@ -149,6 +149,11 @@ def main() -> None:
 
                     st.markdown("**ARIMA selection**")
                     st.write(f"Selected order: {results['arima']['order']}")
+                    if not results["arima"].get("converged", True):
+                        st.warning(
+                            "ARIMA fit did not fully converge; forecasts may be less reliable. "
+                            "Order selection succeeded but optimization hit its iteration limit."
+                        )
 
                     st.markdown("**GARCH**")
                     st.write("Volatility forecast prepared.")
@@ -220,106 +225,122 @@ def main() -> None:
 
                     st.pyplot(fig2, use_container_width=False)
 
-                with eval_tab:
-                    st.subheader("Forecast evaluation")
-                    st.write(
-                        "Out-of-sample performance for the ARIMA model on the Financial Stress Index. "
-                        "Choose a training ratio and run the evaluation to see forecast accuracy on the held-out window."
+            with eval_tab:
+                st.subheader("Forecast evaluation")
+                st.write(
+                    "Out-of-sample performance for the ARIMA model on the Financial Stress Index. "
+                    "Choose a training ratio and run the evaluation to see forecast accuracy on the held-out window."
+                )
+
+                MAX_EVAL_POINTS = 90  # cap test window to keep runtime reasonable
+
+                # ---- controls ----
+                train_ratio = st.slider(
+                    "Training ratio",
+                    min_value=0.6,
+                    max_value=0.9,
+                    value=0.8,
+                    step=0.05,
+                    key="eval_train_ratio",
+                )
+
+                # Use a fixed order to avoid repeated auto-selection / unstable fits during rolling evaluation
+                order_choice = st.selectbox(
+                    "ARIMA order (for evaluation)",
+                    options=[(1, 0, 1), (1, 1, 1), (2, 0, 1), (2, 1, 2)],
+                    index=0,
+                    key="eval_order_choice",
+                )
+
+                eval_df = get_data()
+                fsi_series = eval_df["FSI"]
+
+                test_fraction = 1 - train_ratio
+                requested_test_size = int(len(fsi_series) * test_fraction)
+                test_size = max(1, min(requested_test_size, MAX_EVAL_POINTS))
+
+                if requested_test_size > MAX_EVAL_POINTS:
+                    st.caption(
+                        f"Test window capped at {MAX_EVAL_POINTS} observations (requested {requested_test_size}) "
+                        "to keep evaluation responsive."
                     )
 
-            # ---- controls ----
-            train_ratio = st.slider(
-                "Training ratio",
-                min_value=0.6,
-                max_value=0.9,
-                value=0.8,
-                step=0.05,
-                key="eval_train_ratio",
-            )
+                run_eval = st.button("Run evaluation", key="eval_run_btn")
 
-            # Use a fixed order to avoid repeated auto-selection / unstable fits during rolling evaluation
-            order_choice = st.selectbox(
-                "ARIMA order (for evaluation)",
-                options=[(1, 0, 1), (1, 1, 1), (2, 0, 1), (2, 1, 2)],
-                index=0,
-                key="eval_order_choice",
-            )
-
-            run_eval = st.button("Run evaluation", key="eval_run_btn")
-
-            # ---- session cache so results persist without rerunning ----
-            if "eval_results" not in st.session_state:
-                st.session_state["eval_results"] = None
-
-            if run_eval:
-                try:
-                    with st.spinner("Running rolling-origin ARIMA evaluation... this may take a moment"):
-                        eval_df = get_data()
-                        fsi_series = eval_df["FSI"]
-
-                        test_fraction = 1 - train_ratio
-
-                        eval_res = rolling_origin_arima_evaluation(
-                            fsi_series,
-                            order=order_choice,
-                            test_size=test_fraction,
-                            forecast_horizon=1,
-                        )
-
-                        st.session_state["eval_results"] = {
-                            "train_ratio": train_ratio,
-                            "order": order_choice,
-                            "eval_res": eval_res,
-                        }
-
-                except Exception as exc:
+                # ---- session cache so results persist without rerunning ----
+                if "eval_results" not in st.session_state:
                     st.session_state["eval_results"] = None
-                    st.error(f"Evaluation failed: {exc}")
 
-            # ---- display cached results if available ----
-            cached = st.session_state.get("eval_results")
+                if run_eval:
+                    try:
+                        with st.spinner("Running rolling-origin ARIMA evaluation... this may take a moment"):
+                            eval_res = rolling_origin_arima_evaluation(
+                                fsi_series,
+                                order=order_choice,
+                                test_size=test_size,
+                                forecast_horizon=1,
+                            )
 
-            if cached is None:
-                st.info("Click **Run evaluation** to compute out-of-sample performance.")
-            else:
-                if cached["train_ratio"] != train_ratio or cached["order"] != order_choice:
-                    st.warning("Settings changed. Click **Run evaluation** again to update results.")
+                            st.session_state["eval_results"] = {
+                                "train_ratio": train_ratio,
+                                "order": order_choice,
+                                "test_size": test_size,
+                                "eval_res": eval_res,
+                            }
+
+                    except Exception as exc:
+                        st.session_state["eval_results"] = None
+                        st.error(f"Evaluation failed: {exc}")
+
+                # ---- display cached results if available ----
+                cached = st.session_state.get("eval_results")
+
+                if cached is None:
+                    st.info("Click **Run evaluation** to compute out-of-sample performance.")
                 else:
-                    eval_res = cached["eval_res"]
-                    metrics = eval_res["metrics"]
-                    preds = eval_res["predictions"]
-
-                    eval_df = get_data()
-                    fsi_series = eval_df["FSI"]
-
-                    actual = fsi_series.loc[preds.index]
-                    actual_aligned, preds_aligned = actual.align(preds, join="inner")
-
-                    if actual_aligned.empty:
-                        st.warning("No overlapping dates between actual and predicted series.")
+                    if (
+                        cached["train_ratio"] != train_ratio
+                        or cached["order"] != order_choice
+                        or cached.get("test_size") != test_size
+                    ):
+                        st.warning("Settings changed. Click **Run evaluation** again to update results.")
                     else:
-                        col1, col2 = st.columns(2)
-                        col1.metric("RMSE", f"{metrics['rmse']:.4f}")
-                        col2.metric("MAE", f"{metrics['mae']:.4f}")
+                        eval_res = cached["eval_res"]
+                        metrics = eval_res["metrics"]
+                        preds = eval_res["predictions"]
 
-                        train_end_dt = pd.to_datetime(metrics["train_end"]).date()
-                        test_start_dt = pd.to_datetime(metrics["test_start"]).date()
-                        test_end_dt = pd.to_datetime(metrics["test_end"]).date()
-                        st.write(
-                            f"Train end: {train_end_dt} | Test window: {test_start_dt} to {test_end_dt}"
-                        )
+                        actual = fsi_series.loc[preds.index]
+                        actual_aligned, preds_aligned = actual.align(preds, join="inner")
 
-                        overlay_df = pd.DataFrame(
-                            {"Actual FSI": actual_aligned, "Predicted FSI": preds_aligned}
-                        )
-                        st.line_chart(overlay_df)
+                        if actual_aligned.empty:
+                            st.warning("No overlapping dates between actual and predicted series.")
+                        else:
+                            col1, col2 = st.columns(2)
+                            col1.metric("RMSE", f"{metrics['rmse']:.4f}")
+                            col2.metric("MAE", f"{metrics['mae']:.4f}")
 
-                        errors = (actual_aligned - preds_aligned).rename("Forecast error")
-                        st.line_chart(errors.to_frame())
+                            train_end_dt = pd.to_datetime(metrics["train_end"]).date()
+                            test_start_dt = pd.to_datetime(metrics["test_start"]).date()
+                            test_end_dt = pd.to_datetime(metrics["test_end"]).date()
+                            st.write(
+                                f"Train end: {train_end_dt} | Test window: {test_start_dt} to {test_end_dt}"
+                            )
+                            st.caption(
+                                f"Using {len(fsi_series) - cached['test_size']} training observations "
+                                f"and {cached['test_size']} test observations (capped at {MAX_EVAL_POINTS})."
+                            )
 
-                        st.dataframe(
-                            pd.DataFrame({"Actual": actual_aligned, "Predicted": preds_aligned}).tail(10)
-                        )
+                            overlay_df = pd.DataFrame(
+                                {"Actual FSI": actual_aligned, "Predicted FSI": preds_aligned}
+                            )
+                            st.line_chart(overlay_df)
+
+                            errors = (actual_aligned - preds_aligned).rename("Forecast error")
+                            st.line_chart(errors.to_frame())
+
+                            st.dataframe(
+                                pd.DataFrame({"Actual": actual_aligned, "Predicted": preds_aligned}).tail(10)
+                            )
 
 
 
