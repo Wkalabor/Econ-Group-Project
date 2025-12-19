@@ -145,7 +145,8 @@ def main() -> None:
                     st.write(f"R-squared: {ols['r2']:.3f}")
                     st.dataframe(ols["params"].to_frame("coef"))
                     st.write("Diagnostics")
-                    st.dataframe(pd.Series(ols["diagnostics"]).to_frame("value"))
+                    diag_df = pd.Series(ols["diagnostics"]).apply(lambda x: f"{x:.4g}").to_frame("value")
+                    st.dataframe(diag_df)
 
                     st.markdown("**ARIMA selection**")
                     st.write(f"Selected order: {results['arima']['order']}")
